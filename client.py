@@ -116,6 +116,6 @@ def main():
 
     log("All transfers complete.")
 
-
-if _name_ == "_main_":
+#here correction
+if __name__ == "__main__":
     main()
