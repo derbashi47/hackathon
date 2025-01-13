@@ -37,7 +37,7 @@ def listen_for_offers():
                     return addr[0], tcp_port, udp_port
 
 
-# Function to handle TCP downloadguhjk
+# Function to handle TCP
 def tcp_download(server_ip, tcp_port, file_size):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_socket:
@@ -46,7 +46,6 @@ def tcp_download(server_ip, tcp_port, file_size):
             # Send request message
             request_message = struct.pack('!IBQ', MAGIC_COOKIE, REQUEST_TYPE, file_size)
             tcp_socket.sendall(request_message)
-            print("sdsff")
 
             # Measure download time
             start_time = time.time()
