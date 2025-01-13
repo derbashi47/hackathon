@@ -20,12 +20,13 @@ def log(message):
 def listen_for_offers():
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     udp_socket.bind(('', UDP_BROADCAST_PORT))
 
     log("Listening for offers...")
 
     while True:
+
         ready, _, _ = select.select([udp_socket], [], [], 1)
         if udp_socket in ready:
             data, addr = udp_socket.recvfrom(1024)
@@ -36,7 +37,7 @@ def listen_for_offers():
                     return addr[0], tcp_port, udp_port
 
 
-# Function to handle TCP download
+# Function to handle TCP downloadguhjk
 def tcp_download(server_ip, tcp_port, file_size):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_socket:
@@ -45,6 +46,7 @@ def tcp_download(server_ip, tcp_port, file_size):
             # Send request message
             request_message = struct.pack('!IBQ', MAGIC_COOKIE, REQUEST_TYPE, file_size)
             tcp_socket.sendall(request_message)
+            print("sdsff")
 
             # Measure download time
             start_time = time.time()
