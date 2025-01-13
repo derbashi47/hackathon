@@ -16,6 +16,15 @@ TCP_PORT = 65432
 def log(message):
     print(f"[SERVER] {message}")
 
+def get_server_ip():
+    try:
+        # Create a dummy socket to determine the external IP
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))  # Connect to a public DNS server
+            ip_address = s.getsockname()[0]  # Get the server's local IP
+        return ip_address
+    except Exception as e:
+        return f"Error determining server IP: {e}"
 
 # Broadcast "offer" packets to clients via UDP
 def broadcast_offers():
@@ -77,7 +86,7 @@ def tcp_server():
         while True:
             client_socket, client_address = tcp_socket.accept()
             log(f"Accepted connection from {client_address}.")
-            threading.Thread(target=handle_tcp_client(), args=(client_socket, client_address), daemon=True).start()
+            threading.Thread(target=handle_tcp_client(client_socket,client_address), args=(client_socket, client_address), daemon=True).start()
     except Exception as e:
         log(f"Error in TCP server: {e}")
         raise
@@ -127,7 +136,7 @@ def udp_server():
 
 # Main server function
 def main():
-    log("Starting server...")
+    log(f"Server started, listening on IP address {get_server_ip()}")
 
     # Start the UDP broadcasting thread
     threading.Thread(target=broadcast_offers, daemon=True).start()

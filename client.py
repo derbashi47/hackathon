@@ -9,8 +9,9 @@ OFFER_TYPE = 0x2
 REQUEST_TYPE = 0x3
 PAYLOAD_TYPE = 0x4
 UDP_BROADCAST_PORT = 13117
-
-
+# Global order counter and lock
+transfer_order = 1
+transfer_order_lock = threading.Lock()
 # Helper function for logging
 def log(message):
     print(f"[CLIENT] {message}")
@@ -23,7 +24,7 @@ def listen_for_offers():
     #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     udp_socket.bind(('', UDP_BROADCAST_PORT))
 
-    log("Listening for offers...")
+    #log("Listening for offers...")
 
     while True:
 
@@ -33,12 +34,13 @@ def listen_for_offers():
             if len(data) >= 9:
                 magic_cookie, message_type, udp_port, tcp_port = struct.unpack('!IBHH', data[:9])
                 if magic_cookie == MAGIC_COOKIE and message_type == OFFER_TYPE:
-                    log(f"Received offer from {addr[0]}: UDP port {udp_port}, TCP port {tcp_port}")
+                    log(f"Received offer from {addr[0]}")
                     return addr[0], tcp_port, udp_port
 
 
 # Function to handle TCP
 def tcp_download(server_ip, tcp_port, file_size):
+    global transfer_order
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_socket:
             tcp_socket.connect((server_ip, tcp_port))
@@ -61,14 +63,17 @@ def tcp_download(server_ip, tcp_port, file_size):
 
             elapsed_time = time.time() - start_time
             speed = total_bytes * 8 / elapsed_time
-            log(f"TCP transfer finished: {total_bytes} bytes, time: {elapsed_time:.2f}s, speed: {speed:.2f} bps")
+            with transfer_order_lock:
+                current_order = transfer_order
+                transfer_order += 1
+            log(f"TCP transfer #{current_order} finished: {total_bytes} bytes, time: {elapsed_time:.2f}s, speed: {speed:.2f} bps")
     except Exception as e:
         log(f"Error during TCP download: {e}")
 
 
 # Function to handle UDP download
 def udp_download(server_ip, udp_port, file_size):
-
+    global transfer_order
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
             udp_socket.settimeout(1)
@@ -86,7 +91,7 @@ def udp_download(server_ip, udp_port, file_size):
             while True:
                 try:
                     data, _ = udp_socket.recvfrom(2048)
-                    log(f"Received packet of size {len(data)} bytes.")
+                    #log(f"Received packet of size {len(data)} bytes.")
                     if len(data) >= 20:  # Ensure the packet is large enough
                         magic_cookie, message_type, current_segment, total_segments = struct.unpack('!IBQQ', data[:21])
                         if magic_cookie == MAGIC_COOKIE and message_type == PAYLOAD_TYPE:
@@ -101,13 +106,17 @@ def udp_download(server_ip, udp_port, file_size):
             elapsed_time = time.time() - start_time
             speed = total_bytes * 8 / elapsed_time if elapsed_time > 0 else 0
             packet_loss = (1 - (packets_received / packets_expected)) * 100 if packets_expected > 0 else 100
+            with transfer_order_lock:
+                current_order = transfer_order
+                transfer_order += 1
+            log(f"UDP #{current_order} transfer finished: {total_bytes} bytes, time: {elapsed_time:.2f}s, speed: {speed:.2f} bps, packets received: {packets_received}, packet loss: {packet_loss:.2f}%")
 
-            log(f"UDP transfer finished: {total_bytes} bytes, time: {elapsed_time:.2f}s, speed: {speed:.2f} bps, packets received: {packets_received}, packet loss: {packet_loss:.2f}%")
     except Exception as e:
         log(f"Error during UDP download: {e}")
 
 # Main client function
 def main():
+    log("Client started, listening for offer requests...")
     while True:
         server_ip, tcp_port, udp_port = listen_for_offers()
 
@@ -124,7 +133,7 @@ def main():
             tcp_thread.join()
             udp_thread.join()
 
-            log("All transfers complete. Returning to listening for offers...")
+            log("All transfers complete. listening for offer requests")
         except Exception as e:
             log(f"Error in main client loop: {e}")
 
