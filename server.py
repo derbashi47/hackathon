@@ -19,14 +19,18 @@ def log(message):
 
 # Broadcast "offer" packets to clients via UDP
 def broadcast_offers():
-    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    offer_message = struct.pack('!IBHH', MAGIC_COOKIE, OFFER_TYPE, UDP_BROADCAST_PORT, TCP_PORT)
+        try:
+            udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            offer_message = struct.pack('!IBHH', MAGIC_COOKIE, OFFER_TYPE, UDP_BROADCAST_PORT, TCP_PORT)
 
-    while True:
-        udp_socket.sendto(offer_message, ('<broadcast>', UDP_BROADCAST_PORT))
-        log("Broadcasted offer packet.")
-        time.sleep(1)
+            log(f"Broadcasting offers on UDP port {UDP_BROADCAST_PORT}.")
+            while True:
+                udp_socket.sendto(offer_message, ('<broadcast>', UDP_BROADCAST_PORT))
+                time.sleep(1)  # Broadcast every second
+        except Exception as e:
+            log(f"Error broadcasting offers: {e}")
+            raise
 
 
 # Handle TCP client requests
@@ -64,15 +68,19 @@ def handle_tcp_client(client_socket, client_address):
 
 # TCP server: accept and handle connections
 def tcp_server():
-    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp_socket.bind(("", TCP_PORT))
-    tcp_socket.listen(5)
-    log(f"TCP server listening on port {TCP_PORT}.")
+    try:
+        tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        tcp_socket.bind(("", TCP_PORT))  # Bind to the TCP port
+        tcp_socket.listen(5)  # Allow up to 5 queued connections
+        log(f"TCP server listening on port {TCP_PORT}.")
 
-    while True:
-        client_socket, client_address = tcp_socket.accept()
-        log(f"Accepted TCP connection from {client_address}.")
-        threading.Thread(target=handle_tcp_client, args=(client_socket, client_address), daemon=True).start()
+        while True:
+            client_socket, client_address = tcp_socket.accept()
+            log(f"Accepted connection from {client_address}.")
+            threading.Thread(target=handle_tcp_client(), args=(client_socket, client_address), daemon=True).start()
+    except Exception as e:
+        log(f"Error in TCP server: {e}")
+        raise
 
 
 # Handle UDP client requests
