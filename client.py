@@ -46,7 +46,6 @@ def tcp_download(server_ip, tcp_port, file_size):
             # Send request message
             request_message = struct.pack('!IBQ', MAGIC_COOKIE, REQUEST_TYPE, file_size)
             tcp_socket.sendall(request_message)
-            print("sdsff")
 
             # Measure download time
             start_time = time.time()
