@@ -37,7 +37,7 @@ def listen_for_offers():
                     return addr[0], tcp_port, udp_port
 
 
-# Function to handle TCP downloadguhjk
+# Function to handle TCP
 def tcp_download(server_ip, tcp_port, file_size):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_socket:
