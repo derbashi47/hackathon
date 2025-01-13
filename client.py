@@ -97,7 +97,7 @@ def udp_download(server_ip, udp_port, file_size):
                         magic_cookie, message_type, current_segment, total_segments = struct.unpack('!IBQQ', data[:21])
                         if magic_cookie == MAGIC_COOKIE and message_type == PAYLOAD_TYPE:
                             packets_received += 1
-                            packets_expected = total_segments
+                            packets_expected = file_size/(1025)
                             total_bytes += len(data) - 20
                     else:
                         log(f"Received an incomplete packet of size {len(data)} bytes.")
