@@ -87,7 +87,7 @@ def udp_download(server_ip, udp_port, file_size):
             total_bytes = 0
             packets_received = 0
             packets_expected = 0
-            total_segments = 0
+            success_percentage = 0
 
             while True:
                 try:
@@ -106,12 +106,13 @@ def udp_download(server_ip, udp_port, file_size):
 
             elapsed_time = time.time() - start_time
             speed = total_bytes * 8 / elapsed_time if elapsed_time > 0 else 0
-            packet_loss = (1 - (packets_received / packets_expected)) * 100 if packets_expected > 0 else 100
-            percentage_received = (packets_received / total_segments) * 100 if total_segments > 0 else 0
+            if packets_expected > 0:  # Prevent division by zero
+                success_percentage = (packets_received / packets_expected) * 100
+
             with transfer_order_lock:
                 current_order = transfer_order
                 transfer_order += 1
-            log(f"UDP transfer #{current_order} finished, {total_bytes} bytes, Total time: {elapsed_time:.2f}s, Total speed: {speed:.2f} bps, packets received: {packets_received:.2f}%")
+            log(f"UDP transfer #{current_order} finished, {total_bytes} bytes, Total time: {elapsed_time:.2f}s, Total speed: {speed:.2f} bps, packets received: {success_percentage:.2f}%")
 
     except Exception as e:
         log(f"Error during UDP download: {e}")
