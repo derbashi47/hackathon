@@ -2,21 +2,17 @@ import socket
 import threading
 import struct
 import time
+import select
 
-# Constants for the assignment
 MAGIC_COOKIE = 0xabcddcba
 OFFER_TYPE = 0x2
 REQUEST_TYPE = 0x3
 PAYLOAD_TYPE = 0x4
 UDP_BROADCAST_PORT = 13117
 
-
-# Helper function for logging
 def log(message):
     print(f"[CLIENT] {message}")
 
-
-# Function to listen for server offers
 def listen_for_offers():
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -26,33 +22,32 @@ def listen_for_offers():
     log("Listening for offers...")
 
     while True:
-        data, addr = udp_socket.recvfrom(1024)
-        if len(data) >= 9:
-            magic_cookie, message_type, udp_port, tcp_port = struct.unpack('!IBHH', data[:9])
-            if magic_cookie == MAGIC_COOKIE and message_type == OFFER_TYPE:
-                log(f"Received offer from {addr[0]}: UDP port {udp_port}, TCP port {tcp_port}")
-                return addr[0], tcp_port, udp_port
+        ready, _, _ = select.select([udp_socket], [], [], 1)
+        if udp_socket in ready:
+            data, addr = udp_socket.recvfrom(1024)
+            if len(data) >= 9:
+                magic_cookie, message_type, udp_port, tcp_port = struct.unpack('!IBHH', data[:9])
+                if magic_cookie == MAGIC_COOKIE and message_type == OFFER_TYPE:
+                    log(f"Received offer from {addr[0]}: UDP port {udp_port}, TCP port {tcp_port}")
+                    return addr[0], tcp_port, udp_port
 
-
-# Function to handle TCP download
 def tcp_download(server_ip, tcp_port, file_size):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_socket:
             tcp_socket.connect((server_ip, tcp_port))
-
-            # Send request message
             request_message = struct.pack('!IBQ', MAGIC_COOKIE, REQUEST_TYPE, file_size)
             tcp_socket.sendall(request_message)
 
-            # Measure download time
             start_time = time.time()
             total_bytes = 0
 
             while total_bytes < file_size:
-                data = tcp_socket.recv(1024)
-                if not data:
-                    break
-                total_bytes += len(data)
+                ready, _, _ = select.select([tcp_socket], [], [], 1)
+                if tcp_socket in ready:
+                    data = tcp_socket.recv(1024)
+                    if not data:
+                        break
+                    total_bytes += len(data)
 
             elapsed_time = time.time() - start_time
             speed = total_bytes * 8 / elapsed_time
@@ -60,18 +55,13 @@ def tcp_download(server_ip, tcp_port, file_size):
     except Exception as e:
         log(f"Error during TCP download: {e}")
 
-
-# Function to handle UDP download
 def udp_download(server_ip, udp_port, file_size):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
             udp_socket.settimeout(1)
-
-            # Send request message
             request_message = struct.pack('!IBQ', MAGIC_COOKIE, REQUEST_TYPE, file_size)
             udp_socket.sendto(request_message, (server_ip, udp_port))
 
-            # Measure download time
             start_time = time.time()
             total_bytes = 0
             packets_received = 0
@@ -97,16 +87,12 @@ def udp_download(server_ip, udp_port, file_size):
     except Exception as e:
         log(f"Error during UDP download: {e}")
 
-
-# Main client function
 def main():
     server_ip, tcp_port, udp_port = listen_for_offers()
-
     file_size = int(input("Enter file size to download (in bytes): "))
 
-    # Start TCP and UDP transfers
-    tcp_thread = threading.Thread(target=tcp_download, args=(server_ip, tcp_port, file_size))
-    udp_thread = threading.Thread(target=udp_download, args=(server_ip, udp_port, file_size))
+    tcp_thread = threading.Thread(target=tcp_download, args=(server_ip, tcp_port, file_size), daemon=True)
+    udp_thread = threading.Thread(target=udp_download, args=(server_ip, udp_port, file_size), daemon=True)
 
     tcp_thread.start()
     udp_thread.start()
@@ -116,6 +102,5 @@ def main():
 
     log("All transfers complete.")
 
-#here correction
 if __name__ == "__main__":
     main()

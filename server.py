@@ -11,9 +11,11 @@ PAYLOAD_TYPE = 0x4
 UDP_BROADCAST_PORT = 13117
 TCP_PORT = 65432
 
+
 # Helper function for logging
 def log(message):
     print(f"[SERVER] {message}")
+
 
 # Broadcast "offer" packets to clients via UDP (Step 1 in the Example Run)
 def broadcast_offers():
@@ -26,6 +28,7 @@ def broadcast_offers():
         udp_socket.sendto(offer_message, ('<broadcast>', UDP_BROADCAST_PORT))
         log("Broadcasted offer packet.")
         time.sleep(1)
+
 
 # Handle client speed test requests (Step 8)
 def handle_client(client_socket, client_address):
@@ -60,6 +63,7 @@ def handle_client(client_socket, client_address):
     finally:
         client_socket.close()
 
+
 # Accept incoming TCP connections and handle them in threads (Step 8)
 def tcp_server():
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -71,6 +75,7 @@ def tcp_server():
         client_socket, client_address = tcp_socket.accept()
         log(f"Accepted connection from {client_address}.")
         threading.Thread(target=handle_client, args=(client_socket, client_address)).start()
+
 
 # Handle UDP payload requests (Step 8)
 def handle_udp_request(data, client_address, udp_socket):
@@ -101,6 +106,7 @@ def handle_udp_request(data, client_address, udp_socket):
     except Exception as e:
         log(f"Error handling UDP request from {client_address}: {e}")
 
+
 # Run the UDP server to handle client requests (Step 8)
 def udp_server():
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -110,6 +116,7 @@ def udp_server():
     while True:
         data, client_address = udp_socket.recvfrom(1024)
         threading.Thread(target=handle_udp_request, args=(data, client_address, udp_socket)).start()
+
 
 # Main server function to start both UDP and TCP servers
 def main():
@@ -127,6 +134,7 @@ def main():
     # Keep the main thread alive
     while True:
         time.sleep(1)
+
 
 if __name__ == "__main__":
     main()
