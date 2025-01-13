@@ -10,9 +10,13 @@ REQUEST_TYPE = 0x3
 PAYLOAD_TYPE = 0x4
 UDP_BROADCAST_PORT = 13117
 
+
+# Helper function for logging
 def log(message):
     print(f"[CLIENT] {message}")
 
+
+# Function to listen for server offers
 def listen_for_offers():
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -31,13 +35,18 @@ def listen_for_offers():
                     log(f"Received offer from {addr[0]}: UDP port {udp_port}, TCP port {tcp_port}")
                     return addr[0], tcp_port, udp_port
 
+
+# Function to handle TCP download
 def tcp_download(server_ip, tcp_port, file_size):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_socket:
             tcp_socket.connect((server_ip, tcp_port))
+
+            # Send request message
             request_message = struct.pack('!IBQ', MAGIC_COOKIE, REQUEST_TYPE, file_size)
             tcp_socket.sendall(request_message)
 
+            # Measure download time
             start_time = time.time()
             total_bytes = 0
 
@@ -55,13 +64,19 @@ def tcp_download(server_ip, tcp_port, file_size):
     except Exception as e:
         log(f"Error during TCP download: {e}")
 
+
+# Function to handle UDP download
 def udp_download(server_ip, udp_port, file_size):
+
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
             udp_socket.settimeout(1)
+
+            # Send request message
             request_message = struct.pack('!IBQ', MAGIC_COOKIE, REQUEST_TYPE, file_size)
             udp_socket.sendto(request_message, (server_ip, udp_port))
 
+            # Measure download time
             start_time = time.time()
             total_bytes = 0
             packets_received = 0
@@ -70,12 +85,15 @@ def udp_download(server_ip, udp_port, file_size):
             while True:
                 try:
                     data, _ = udp_socket.recvfrom(2048)
-                    if len(data) >= 20:
-                        magic_cookie, message_type, current_segment, total_segments = struct.unpack('!IBQQ', data[:20])
+                    log(f"Received packet of size {len(data)} bytes.")
+                    if len(data) >= 20:  # Ensure the packet is large enough
+                        magic_cookie, message_type, current_segment, total_segments = struct.unpack('!IBQQ', data[:21])
                         if magic_cookie == MAGIC_COOKIE and message_type == PAYLOAD_TYPE:
                             packets_received += 1
                             packets_expected = total_segments
                             total_bytes += len(data) - 20
+                    else:
+                        log(f"Received an incomplete packet of size {len(data)} bytes.")
                 except socket.timeout:
                     break
 
@@ -87,20 +105,28 @@ def udp_download(server_ip, udp_port, file_size):
     except Exception as e:
         log(f"Error during UDP download: {e}")
 
+# Main client function
 def main():
-    server_ip, tcp_port, udp_port = listen_for_offers()
-    file_size = int(input("Enter file size to download (in bytes): "))
+    while True:
+        server_ip, tcp_port, udp_port = listen_for_offers()
 
-    tcp_thread = threading.Thread(target=tcp_download, args=(server_ip, tcp_port, file_size), daemon=True)
-    udp_thread = threading.Thread(target=udp_download, args=(server_ip, udp_port, file_size), daemon=True)
+        try:
+            file_size = int(input("Enter file size to download (in bytes): "))
 
-    tcp_thread.start()
-    udp_thread.start()
+            # Start TCP and UDP transfers
+            tcp_thread = threading.Thread(target=tcp_download, args=(server_ip, tcp_port, file_size), daemon=True)
+            udp_thread = threading.Thread(target=udp_download, args=(server_ip, udp_port, file_size), daemon=True)
 
-    tcp_thread.join()
-    udp_thread.join()
+            tcp_thread.start()
+            udp_thread.start()
 
-    log("All transfers complete.")
+            tcp_thread.join()
+            udp_thread.join()
+
+            log("All transfers complete. Returning to listening for offers...")
+        except Exception as e:
+            log(f"Error in main client loop: {e}")
+
 
 if __name__ == "__main__":
     main()
