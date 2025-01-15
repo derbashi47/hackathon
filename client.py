@@ -44,7 +44,7 @@ def listen_for_offers():
             if len(data) >= 9:
                 magic_cookie, message_type, udp_port, tcp_port = struct.unpack('!IBHH', data[:9])
                 if magic_cookie == MAGIC_COOKIE and message_type == OFFER_TYPE:
-                    log(f"Received offer from {addr[0]} (UDP: {udp_port}, TCP: {tcp_port})", "info")
+                    log(f"Received offer from {addr[0]}", "info")
                     return addr[0], tcp_port, udp_port
 
 def tcp_download(server_ip, tcp_port, file_size):
@@ -113,11 +113,10 @@ def udp_download(server_ip, udp_port, file_size):
                             if current_segment not in packets_received:
                                 packets_received.add(current_segment)
                                 total_bytes += len(data) - 20
-                                show_progress(len(packets_received), total_segments)
                 except socket.timeout:
                     log("Timeout while waiting for UDP packets. Retrying...", "warning")
                     break
-
+            show_progress(len(packets_received), total_segments)
             elapsed_time = time.time() - start_time
             speed = total_bytes * 8 / elapsed_time if elapsed_time > 0 else 0
             success_rate = len(packets_received) / packets_expected * 100 if packets_expected > 0 else 0
@@ -127,11 +126,12 @@ def udp_download(server_ip, udp_port, file_size):
                 transfer_order += 1
 
             log(f"\nUDP transfer #{current_order} finished: {total_bytes} bytes, time: {elapsed_time:.2f}s, speed: {speed:.2f} bps, success rate: {success_rate:.2f}%\n", "info")
+
     except Exception as e:
         log(f"Error during UDP download: {e}", "error")
 
 def main():
-    log("Client started.\n", "info")
+    log("Client started listening for offer requests...", "{info}")
     while True:
         server_ip, tcp_port, udp_port = listen_for_offers()
 
@@ -150,7 +150,7 @@ def main():
             tcp_thread.join()
             udp_thread.join()
 
-            log("All transfers complete. Listening for server offers again...\n", "info")
+            log("All transfers complete. listening for offer requests\n", "info")
         except ValueError as e:
             log(f"Invalid input: {e}\n", "error")
         except Exception as e:
