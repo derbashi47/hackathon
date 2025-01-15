@@ -89,7 +89,7 @@ def udp_download(server_ip, udp_port, file_size):
     global transfer_order
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
-            udp_socket.settimeout(2)
+            udp_socket.settimeout(5)
 
             # Send request message
             request_message = struct.pack('!IBQ', MAGIC_COOKIE, REQUEST_TYPE, file_size)
@@ -116,6 +116,7 @@ def udp_download(server_ip, udp_port, file_size):
                                 show_progress(len(packets_received), total_segments)
                 except socket.timeout:
                     log("Timeout while waiting for UDP packets. Retrying...", "warning")
+                    break
 
             elapsed_time = time.time() - start_time
             speed = total_bytes * 8 / elapsed_time if elapsed_time > 0 else 0
